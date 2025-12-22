@@ -77,7 +77,7 @@ The estimated path (colored) aligns tightly with the ground truth (dashed grey).
 While the overall performance was excellent (RMSE < 15cm), we analyzed specific segments where error accumulation occurred to understand the system's limits:
 
 1.  **High-Dynamic Rotation (The "Aggressive Yaw" Problem):**
-    *   **Observation:** The largest error spikes (up to 0.39m) correlate directly with rapid yaw maneuvers in the dataset.
+    *   **Observation:** The largest error spikes (up to 0.35m) correlate directly with rapid yaw maneuvers in the dataset.
     *   **Mechanism:** High angular velocity (> 2 rad/s) causes motion blur, even with global shutter cameras. This degrades the **KLT (Kanade-Lucas-Tomasi)** sparse optical flow tracking, causing the number of valid tracked features to drop significantly (e.g., falling from 150 to < 50).
     *   **System Behavior:** When visual constraints weaken, the estimator relies heavily on IMU pre-integration. Since IMU double-integration leads to quadratic error growth ($x = \frac{1}{2}at^2$), position drift accumulates rapidly until visual features are re-acquired and the graph is optimized.
 
@@ -86,7 +86,7 @@ While the overall performance was excellent (RMSE < 15cm), we analyzed specific 
     *   **Mechanism:** Low signal-to-noise ratio in dark regions makes feature corners less distinct. Although histogram equalization (`equalize: 1`) mitigates this, it can amplify sensor noise in texture-less regions, occasionally introducing false feature matches (outliers) that slip through the RANSAC check.
 
 3.  **Temporal Misalignment (RPE Spikes):**
-    *   **Observation:** The Relative Pose Error (RPE) shows occasional large jumps (max 2.97m instantaneous).
+    *   **Observation:** The Relative Pose Error (RPE) shows occasional large jumps (max 2.07m instantaneous).
     *   **Mechanism:** This is likely an artifact of timestamp synchronization rather than tracking failure. The VINS system outputs pose estimates at the time of image capture, while ground truth is provided by an external motion capture system. Any jitter or unmodeled transmission delay ($t_d$) results in a "pseudo-error" during high-velocity segments, even if the trajectory shape is correct.
 
 ---
