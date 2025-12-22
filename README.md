@@ -7,7 +7,7 @@ The solution is fully containerized using Docker to ensure consistent performanc
 
 **[📄 Read the Full Technical Report (PDF Content)](Technical%20Report/REPORT.md)**
 
-## 2. Prerequisites
+## 2. Dependencies
 To run this project, you need the following installed on your system:
 
 *   **Docker Engine (v19+)**
@@ -103,7 +103,12 @@ bash data/evaluate.sh
 *   `Visual Proof/`: Contains visual evidence.
 *   `README.md/`: Instructions on how to build and run.
 
-## 7. Script Details
+## 7. Visual Proof
+Click the screenshot below to watch a short screen recording of the implementation:
+
+[![Watch the video](Visual%20Proof/Screenshot%202025-12-22.png)](https://youtu.be/GLPZsICRgsA)
+
+## 8. Script Details
 Here is a detailed breakdown of the helper scripts provided in the `data/` folder:
 
 ### `data/download_dataset.sh`
@@ -136,49 +141,86 @@ Here is a detailed breakdown of the helper scripts provided in the `data/` folde
         *   Reorders quaternion components from `[w, x, y, z]` to `[x, y, z, w]`.
         *   Changes the delimiter from comma to space.
 
-## 8. Configuration Details (`config/euroc_tuned.yaml`)
-This file defines the critical parameters for the VINS-Mono estimator. Below is a detailed breakdown of why specific values were chosen for this evaluation project:
+## 9. Complete Configuration Reference
+Below is a comprehensive explanation of every parameter found in `config/euroc_tuned.yaml`.
 
-### 1. Sensor & I/O
-| Parameter | Value | Purpose & Project Context |
+### Common Parameters
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `imu_topic` | `/imu0` | Matches the IMU topic in the EuRoC dataset bag files. |
-| `image_topic` | `/cam0/image_raw` | Matches the left camera topic. We use monocular mode, so only one camera is needed. |
-| `output_path` | `/root/catkin_ws/data/output/` | Maps to the `Implementation Code/data/output` folder on your host machine via Docker volumes, allowing you to access results without entering the container. |
+| `imu_topic` | `/imu0` | ROS topic name for the IMU stream. |
+| `image_topic` | `/cam0/image_raw` | ROS topic name for the camera image stream. |
+| `output_path` | `/root/catkin_ws/data/output/` | Path inside the container where results (trajectory CSVs) are saved. |
 
-### 2. Extrinsic Parameters (Camera-IMU)
-| Parameter | Value | Purpose & Project Context |
+### Camera Calibration
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `estimate_extrinsic` | `2` | **Crucial for Robustness.** We set this to "Unknown" to force the system to calibrate the Camera-to-IMU transformation online. This demonstrates VINS-Mono's ability to recover from mechanical changes without offline calibration tools. |
+| `model_type` | `PINHOLE` | The camera projection model. EuRoC uses a standard pinhole model. |
+| `camera_name` | `camera` | Identifier for the camera. |
+| `image_width` | `752` | Width of the input image in pixels. |
+| `image_height` | `480` | Height of the input image in pixels. |
+| `distortion_parameters` | `k1, k2, p1, p2` | Radial (`k`) and tangential (`p`) distortion coefficients. Used to undistort images. |
+| `projection_parameters` | `fx, fy, cx, cy` | Intrinsic matrix parameters: Focal lengths (`fx`, `fy`) and principal point (`cx`, `cy`). |
 
-### 3. Feature Tracking
-| Parameter | Value | Purpose & Project Context |
+### Extrinsic Parameters
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `max_cnt` | `150` | **Performance Balance.** Tracks up to 150 features. This is high enough for accurate motion estimation but low enough to run in real-time (20Hz+) inside the Docker container. |
-| `min_dist` | `30` | **Feature Distribution.** Enforces a minimum pixel distance between features. This prevents features from bunching up in one high-contrast area, ensuring the estimator can detect rotation vs. translation effectively. |
-| `equalize` | `1` (True) | **Lighting Robustness.** The "Machine Hall" environment has dark corners. Histogram equalization enhances contrast, allowing the system to track features even in poor lighting conditions. |
+| `estimate_extrinsic` | `2` | **0:** Trust provided extrinsics. **1:** Optimize initial guess. **2:** Unknown extrinsics (calibrate online). |
+| `extrinsicRotation` | `[Matrix]` | Rotation matrix ($R_{bc}$) from camera frame to IMU frame. |
+| `extrinsicTranslation` | `[Vector]` | Translation vector ($t_{bc}$) from camera frame to IMU frame. |
 
-### 4. Optimization & Keyframes
-| Parameter | Value | Purpose & Project Context |
+### Feature Tracker Parameters
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `max_solver_time` | `0.04` (40ms) | **Real-Time Guarantee.** Limits the optimization time per frame. If the solver takes longer, it terminates early to prevent lag, ensuring the drone doesn't "fly blind." |
-| `keyframe_parallax` | `10.0` | **Triangulation Accuracy.** Only creates a new keyframe if the camera has moved enough (10 pixels parallax). This ensures that 3D points are triangulated with a wide enough baseline to be accurate. |
+| `max_cnt` | `150` | Maximum number of features to track per frame. |
+| `min_dist` | `30` | Minimum pixel distance between two features to ensure distribution. |
+| `freq` | `10` | Frequency (Hz) to publish tracking results to the backend estimator. |
+| `F_threshold` | `1.0` | RANSAC threshold (in pixels) for outlier rejection during tracking. |
+| `show_track` | `1` | If 1, publishes an image topic showing tracked features (useful for debugging). |
+| `equalize` | `1` | If 1, applies histogram equalization to images before processing (helps in low light). |
+| `fisheye` | `0` | If 1, applies a mask to remove edge noise (specific to fisheye lenses). |
 
-### 5. IMU Noise Modeling (ADIS16448)
-| Parameter | Value | Purpose & Project Context |
+### Optimization Parameters
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `acc_n` / `gyr_n` | `0.08` / `0.004` | **Sensor Specific.** These represent the "white noise" of the accelerometer and gyroscope. We use slightly inflated values compared to the datasheet to account for vibrations on the MAV. |
-| `acc_w` / `gyr_w` | `0.00004` / `2.0e-6` | **Bias Instability.** Models how the IMU bias drifts over time. Correctly modeling this prevents the estimated trajectory from curling or drifting during slow motion. |
+| `max_solver_time` | `0.04` | Max time (seconds) allowed for the solver per frame to maintain real-time performance. |
+| `max_num_iterations` | `8` | Max number of iterations for the non-linear optimization solver. |
+| `keyframe_parallax` | `10.0` | Minimum parallax (pixels) required to select a new keyframe. |
 
-### 6. Loop Closure
-| Parameter | Value | Purpose & Project Context |
+### IMU Parameters
+| Parameter | Value | Description |
 | :--- | :--- | :--- |
-| `loop_closure` | `1` (True) | **Drift Correction.** Enables the system to recognize previously visited locations. When a loop is detected, the system optimizes the entire pose graph, snapping the trajectory back to consistency. This is vital for achieving the low ATE (Absolute Trajectory Error) shown in the report. |
+| `acc_n` | `0.08` | Accelerometer white noise density. |
+| `gyr_n` | `0.004` | Gyroscope white noise density. |
+| `acc_w` | `0.00004` | Accelerometer bias random walk (instability). |
+| `gyr_w` | `2.0e-6` | Gyroscope bias random walk (instability). |
+| `g_norm` | `9.81007` | Magnitude of gravity in the target environment. |
 
-## 9. Visual Proof
-Click the screenshot below to watch a short screen recording of the implementation:
+### Loop Closure Parameters
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| `loop_closure` | `1` | If 1, enables the loop closure module (place recognition + pose graph optimization). |
+| `load_previous_pose_graph` | `0` | If 1, loads a pre-built map from disk at startup. |
+| `fast_relocalization` | `0` | If 1, enables quick relocalization (useful for MAVs re-entering a known map). |
+| `pose_graph_save_path` | `...` | Path to save/load the pose graph data. |
 
-[![Watch the video](Visual%20Proof/Screenshot%202025-12-22.png)](https://youtu.be/GLPZsICRgsA)
+### Unsynchronization Parameters
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| `estimate_td` | `0` | If 1, estimates the time offset ($t_d$) between camera and IMU online. |
+| `td` | `0.0` | Initial guess for the time offset (seconds). |
+
+### Rolling Shutter Parameters
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| `rolling_shutter` | `0` | **0:** Global shutter. **1:** Rolling shutter (enables RS model). |
+| `rolling_shutter_tr` | `0` | Readout time (seconds) of the rolling shutter sensor. |
+
+### Visualization Parameters
+| Parameter | Value | Description |
+| :--- | :--- | :--- |
+| `save_image` | `1` | If 1, saves images in the pose graph (required for loop closure visualization). |
+| `visualize_imu_forward` | `0` | If 1, outputs high-freq IMU propagation for low-latency visualization. |
+| `visualize_camera_size` | `0.4` | Scale of the camera wireframe model in Rviz. |
 
 
 
