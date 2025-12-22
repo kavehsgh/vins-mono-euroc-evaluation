@@ -66,10 +66,10 @@ The estimated trajectory was compared against the OptiTrack Ground Truth using t
 
 **Trajectory Map (Estimated vs Ground Truth)**
 The estimated path (colored) aligns tightly with the ground truth (dashed grey).
-![ATE Plot](../Implementation%20Code/data/output/ate_plot_map.png)
+![ATE Plot](../Implementation%20Code/data/kaveh%20output/ate_plot_map.png)
 
 **Error Over Time**
-![ATE Plot](../Implementation%20Code/data/output/ate_plot_raw.png)
+![ATE Plot](../Implementation%20Code/data/kaveh%20output/ate_plot_raw.png)
 
 ### 4.3. Root Cause Analysis
 While the overall performance was excellent (RMSE < 15cm), the error plots reveal specific behaviors:
