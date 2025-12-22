@@ -1,0 +1,21 @@
+# System files
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+
+# VS Code
+.vscode/
+
+# Dataset (Large files)
+data/*.bag
+
+# Docker
+.docker/
+
+# Temporary files
+*.log

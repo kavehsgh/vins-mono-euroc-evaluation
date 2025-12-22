@@ -1,0 +1,17 @@
+services:
+  vins_mono:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    image: vins_mono_noetic
+    container_name: vins_mono_container
+    network_mode: host
+    environment:
+      - DISPLAY=host.docker.internal:0.0
+      - LIBGL_ALWAYS_INDIRECT=0
+    volumes:
+      - ./data:/root/catkin_ws/data
+      - ./config:/root/catkin_ws/config_overrides
+      - ./scripts:/root/catkin_ws/scripts
+    stdin_open: true
+    tty: true
