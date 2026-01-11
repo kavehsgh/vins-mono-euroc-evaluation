@@ -1,8 +1,6 @@
 # Technical Report: Visual-Inertial SLAM for GPS-Denied Drone Navigation
 
-**Author:** Kaveh SEDIGH  
 **Date:** December 22, 2025  
-**Subject:** Computer Vision Engineer Technical Assessment
 
 ---
 
